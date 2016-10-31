@@ -1,17 +1,24 @@
+#This is the necessary input data that is required to run the code.
 data{
-  int trials;    #integer indicating where the positive data starts
+  #integer indicating where the positive data starts
+  int trials;
+  
+  #The following are related to the dimension space of the problem.
   int Fnumber;    #number of F gates involved
   int chiDimensionsDoubled; #dimensions of a gate
   int chiDimensionsDoubledSquared; #dimensions of a gate
   int chiDimensionsSquared; #dimensions of a gate
-  #int measurements[trials];
   int numberOfGates; #number of gates
   int rhoDimensionsDoubled; #Dimensions of rho and E
   int rhoDimensionsDoubledSquared; #Dimensions of rho and E squared
   int rhoDimensions; #number of dimensions in rho and E
   int chiDimensions; #number of dimensions in the gate
+  
+  #actual measurements
   int measurementResults[numberOfGates,chiDimensionsSquared]; #1s and 0s indicating subject's choice. Rawdata equals 1 means the subject choose option B.
   real measurementCounts[numberOfGates,1,chiDimensionsSquared];
+  
+  #Initializes parameter values
   matrix[chiDimensions,chiDimensions] Sigma; #Previous parameter for prior distribution. Not needed anymore
   matrix[rhoDimensions,rhoDimensions] Sigma2; #Previous parameter for prior distribution. Not needed anymore
   int F1[Fnumber]; #Number of gate components for the SPAM gates
@@ -25,13 +32,15 @@ data{
   matrix[chiDimensions, chiDimensions] chi_LGST_Real[numberOfGates];
   matrix[chiDimensions, chiDimensions] chi_LGST_Imag[numberOfGates];
  
+  #Works to initialize contstraints 
   int chiDimensionsSquaredDoubled;
   matrix[chiDimensionsSquaredDoubled,chiDimensionsSquaredDoubled] A;
   real ceq_real[numberOfGates,chiDimensions,chiDimensions] ;
   real ceq_imag[numberOfGates,chiDimensions,chiDimensions];
   matrix[chiDimensions,chiDimensions] constraint_real;
   matrix[chiDimensions,chiDimensions] constraint_imag;
-  int PauliDimensions;
+  
+  int PauliDimensions; #number of dimensions in the Pauli matrices
   
   real constraint_real_std;
   real constraint_imag_std;
@@ -56,46 +65,43 @@ parameters{
   matrix<lower=-1.05,upper=1.05>[chiDimensions,chiDimensions] chi_Imag[numberOfGates];
 }
 
+#These are parameters that have been transformed either to a different basis or space 
 transformed parameters{
     #matrix array of the gates that are going to be estimated
     matrix<lower=-1.05,upper=1.05>[chiDimensionsDoubled, chiDimensionsDoubled] chi[numberOfGates];
-   
-    #matrix array of the initial state to be estimated, the real part of it and the imaginary part of it.
+     
+    #matrix array of the initial and final states to be estimated, the real part of it and the imaginary part of it for the purposes of changing from operator form to superoprator form.
     matrix[rhoDimensionsDoubled, rhoDimensionsDoubled] rho;
     matrix[rhoDimensions, rhoDimensions] rho_Real;
     matrix[rhoDimensions, rhoDimensions] rho_Imag;
-   
-    #matrix array of the initial state to be estimated, the real part of it and the imaginary part of it.
     matrix[rhoDimensionsDoubled, rhoDimensionsDoubled] E;
     matrix[rhoDimensions, rhoDimensions] E_Real;
     matrix[rhoDimensions, rhoDimensions] E_Imag;
-    matrix<lower=0,upper=1>[chiDimensions,chiDimensions] Gmeasured[numberOfGates];
-
-    #Parameter to ensure that I-E is positive semidefinite.
-    #matrix[rhoDimensions,rhoDimensions] E_Real_One_minus;
-    #cov_matrix[rhoDimensions] E_Real_One_minus;
-
-    vector[rhoDimensions] sds1;
-    vector[rhoDimensions] sds2;
-   
+    
+    #Used to transform rho and E from operator form to superoperator form.
     matrix[rhoDimensionsDoubled,rhoDimensions] rho_temp;
     vector[rhoVectorDimensions] rhoVector;
-
     matrix[rhoDimensionsDoubled,rhoDimensions] E_temp;
     row_vector[rhoVectorDimensions] EVector;
    
+   matrix<lower=0,upper=1>[chiDimensions,chiDimensions] Gmeasured[numberOfGates];
+
+    #vector that is used to enforce the unit trace of rho and E
+    vector[rhoDimensions] sds1;
+    vector[rhoDimensions] sds2;
+   
+    #matrix array of the Process matrices to be estimated, the real part of it and the imaginary part of it for the purposes of changing from operator form to superoprator form. 
     matrix[chiDimensionsDoubled,chiDimensionsDoubled] chi_Process[numberOfGates];
     matrix[chiDimensions,chiDimensions] chi_Process_real[numberOfGates];
     matrix[chiDimensions,chiDimensions] chi_Process_imag[numberOfGates];
-    #cov_matrix[chiDimensions] chi_Process_real[numberOfGates];
-    #cov_matrix[chiDimensions] chi_Process_imag[numberOfGates];
     matrix[chiDimensionsDoubled,chiDimensions] chi_k_temp;
     vector[chiDimensionsSquaredDoubled] chi_k_Vector;
     vector[chiDimensionsSquaredDoubled] tempProcess_k;
 
+    #matrix array of the reverse of the Process matrices to be estimated, the real part of it and the imaginary part of it for the purposes of changing from operator form to superoprator form. This acts as a constraint. 
     matrix[chiDimensionsDoubled, chiDimensionsDoubled] chiReverse[numberOfGates];
     matrix<lower=-.05,upper=.05>[chiDimensions, chiDimensions] GmeasuredImag[numberOfGates];
-	matrix[numberOfGates,PauliDimensions] const_real_sum;
+    matrix[numberOfGates,PauliDimensions] const_real_sum;
     matrix[numberOfGates,PauliDimensions] const_imag_sum;
 	
     #takes the square roots of each element in pi1 and pi2 so that sds2*t(sds2) is a square matrix with pi2 on the diagonal and the same for pi1
@@ -103,8 +109,7 @@ transformed parameters{
         sds2[i] <- sqrt(pi2[i]);
         sds1[i] <- sqrt(pi1[i]);
     }   
-   
-   
+      
     rho_Real <- multiply_lower_tri_self_transpose(diag_pre_multiply(sds1, rho_chol_Real) );      #Finds E_Real by multiplying t(rho_chol_Real)*sds1*t(sds1)*rho_chol_Real
     rho_Imag <- (rho_chol_Imag-(rho_chol_Imag)');     #Creates a hollow matrix with zeros on the diagonal
     rho<-append_row(append_col(rho_Real,multiply(-1,rho_Imag)),append_col(rho_Imag,rho_Real));     #creates a block matrix
@@ -113,8 +118,6 @@ transformed parameters{
     E_Real <- multiply_lower_tri_self_transpose(diag_pre_multiply(sds2, E_chol_Real) );     #Finds E_Real by multiplying t(E_chol_Real)*sds2*t(sds2)*E_chol_Real
     E_Imag <- (E_chol_Imag-(E_chol_Imag)');     #Creates a hollow matrix with zeros on the diagonal
     E<-append_row(append_col(E_Real,multiply(-1,E_Imag)),append_col(E_Imag,E_Real));     #creates a block matrix
-
-    #E_Real_One_minus<-(diag_matrix(rep_vector(1, rows(E_Real)))-(E_Real)); #ensures I-E is positive semidefinite
 
     #Creates a block matrix of [Re(chi),-Im(chi); Im(chi), Re(chi)] for form the new chi matrix
     for (k in 1:numberOfGates){
@@ -140,6 +143,7 @@ transformed parameters{
     rhoVector<-to_vector(rho_temp');
     EVector<-to_row_vector(E_temp');
    
+    #calculates the real and imaginary parts of Gmeasured
     for (k in 1:numberOfGates){
         for (j in 1:Fnumber){
             for (i in 1:Fnumber){
@@ -148,8 +152,10 @@ transformed parameters{
             }
         }   
     }
-
-    for (k in 1:numberOfGates){
+  ######
+  ######Applies the constrains by looping through the combinations of the Process matrices
+  ######
+  for (k in 1:numberOfGates){
         for (j in 1:chiDimensions){
             for (i in 1:chiDimensions){
                 chi_k_temp[i,j]<-chi[k][i,j];
@@ -160,18 +166,16 @@ transformed parameters{
         }
         chi_k_Vector<-to_vector(chi_k_temp');
         tempProcess_k<-inverse(A)*chi_k_Vector;
-        #count<-1;
         for (i in 1:chiDimensions){
             for (j in 1:chiDimensions){
                 chi_Process_real[k][i,j]<-tempProcess_k[chiDimensions*(i-1)+j];
                 chi_Process_imag[k][i,j]<-tempProcess_k[chiDimensions*(i-1)+j+chiDimensionsSquared];
-                #count<-count+1;
             }
         }
         chi_Process[k]<-append_row(append_col(chi_Process_real[k],multiply(-1,chi_Process_imag[k])),append_col(chi_Process_imag[k],chi_Process_real[k]));
     }
 	
-	for (k in 1:numberOfGates){
+   for (k in 1:numberOfGates){
         for (rr in 1:PauliDimensions){
             const_real_sum[k,rr]<-zero;
             const_imag_sum[k,rr]<-zero;
@@ -189,20 +193,20 @@ transformed parameters{
             }
         }
     }
-
+  #######
+  #######
+  #######
+  
 }
+
+
 model {
     int count;
     real measurementRates;
-
-    matrix[chiDimensionsDoubled,chiDimensionsDoubled] FI[numberOfGates];
-    matrix[chiDimensionsDoubled,chiDimensionsDoubled] FJ[numberOfGates];
-    matrix[chiDimensionsDoubled,chiDimensionsDoubled] FIimag[numberOfGates];
-    matrix[chiDimensionsDoubled,chiDimensionsDoubled] FJimag[numberOfGates];
-
-     
-
-   
+    
+    ###
+    ###PRIORS
+    ###
     rho_chol_Real ~ lkj_corr_cholesky(nu); #Uniform distribution prior for cholesky matrix
     rho_chol_Imag ~ lkj_corr_cholesky(nu); #Uniform distribution prior for cholesky matrix
     pi1~dirichlet(alpha); #uniform distribution prior for simplex
@@ -224,7 +228,7 @@ model {
 
 
    
-    #editable prior
+    #editable on the constraints prior
     for (k in 1:numberOfGates){
         for (rr in 1:PauliDimensions){
             constraint_real[rr,k]~normal(const_real_sum[rr,k],constraint_real_std);
