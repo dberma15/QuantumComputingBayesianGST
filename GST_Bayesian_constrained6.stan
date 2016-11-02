@@ -23,7 +23,6 @@ data{
   int rhoVectorDimensions; #size of the vector form of rho
   real<lower=0> nu; #parameter for prior distribution
   vector<lower=0>[rhoDimensions] alpha; #parameter for prior distribution
-  matrix[chiDimensionsDoubled,chiDimensionsDoubled]Gates_Actual[numberOfGates]; #The Actual gates , used for trace distance
   int zero;
   matrix[chiDimensions, chiDimensions] chi_LGST_Real[numberOfGates];
   matrix[chiDimensions, chiDimensions] chi_LGST_Imag[numberOfGates];
