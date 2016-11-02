@@ -19,8 +19,6 @@ data{
   real measurementCounts[numberOfGates,1,chiDimensionsSquared];
   
   #Initializes parameter values
-  matrix[chiDimensions,chiDimensions] Sigma; #Previous parameter for prior distribution. Not needed anymore
-  matrix[rhoDimensions,rhoDimensions] Sigma2; #Previous parameter for prior distribution. Not needed anymore
   int F1[Fnumber]; #Number of gate components for the SPAM gates
   int F_map[Fnumber,1]; #Vector of mapping of gates to SPAM gates. Only 1 gate per SPAM gate.
   int rhoVectorDimensions; #size of the vector form of rho
